@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "servo-reader"
+version = "0.1.0"
+description = "Ultra-lightweight terminal web reader: render any site as clean markdown using the Servo engine."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Parker Brown" }]
+keywords = ["servo", "terminal", "reader", "markdown", "browser", "tui", "lynx"]
+dependencies = [
+    "servo-agent",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[project.scripts]
+sr = "servo_reader.__main__:main"
+servo-reader = "servo_reader.__main__:main"
+
+[tool.uv.sources]
+servo-agent = { path = "../servo-agent", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/servo_reader"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
