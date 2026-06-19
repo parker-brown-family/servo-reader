@@ -59,7 +59,7 @@ class Seg:
 
 _INLINE = re.compile(
     r"(?P<code>`+)(?P<code_body>.+?)(?P=code)"
-    r"|!?\[(?P<ltext>[^\]]*)\]\((?P<lurl>[^)\s]+)(?:\s+\"[^\"]*\")?\)"
+    r"|!?\[(?P<ltext>[^\]]*)\]\((?P<lurl>(?:\([^()\s]*\)|[^()\s])*)(?:\s+\"[^\"]*\")?\)"
     r"|(?P<b>\*\*|__)(?P<b_body>.+?)(?P=b)"
     r"|(?P<s>~~)(?P<s_body>.+?)(?P=s)"
     r"|(?P<i>[*_])(?P<i_body>.+?)(?P=i)",

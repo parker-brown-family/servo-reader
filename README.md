@@ -78,6 +78,8 @@ produce the binary.
 
 | Flag | Meaning |
 |------|---------|
+| `-L`, `--links` | append a numbered index of the page's links |
+| `-l N`, `--follow N` | follow link `N` from the last page read |
 | `--http` | force the cheap HTTP fetch (instant, no engine) |
 | `--servo` | force the Servo engine (renders JS) |
 | `--engine auto\|http\|servo` | fetch strategy (default `auto`: HTTP → Servo fallback) |
@@ -89,12 +91,40 @@ produce the binary.
 | `--no-pager` | never page through `less` |
 | `--timeout S` | navigation timeout |
 
+## Browsing — follow links
+
+Every read remembers the page's links. List them with `--links`, then jump:
+
+```bash
+sr --links en.wikipedia.org/wiki/Servo_(software)   # numbered link index
+sr -l 4                                              # follow link 4
+sr -l 12                                             # …and keep going (the new
+                                                     #   page's links are saved too)
+```
+
+State lives in `$XDG_STATE_HOME/servo-reader/last.json` — a single small file, no
+daemon required for navigation.
+
+## Warm engine (skip the cold start)
+
+Engine-tier reads cold-start a `servoshell` (~2s). Run one persistent engine and
+every read attaches to it automatically:
+
+```bash
+sr-engine start     # launch a headless servoshell, register its WebDriver port
+sr-engine status    # running?  where?
+sr ...              # engine reads now attach to the warm one (no env export needed)
+sr-engine stop
+```
+
+`sr` discovers the daemon via the same state dir; you can still override with
+`$SERVO_WEBDRIVER` to point at any engine. (Measured: an engine read drops from
+~2.4s cold to ~1.3s warm.)
+
 ## Status
 
-v0.2 — tiered fetch landed: rich pages read in **~0.5–0.9s over plain HTTP** with
-no engine; thin / JS-gated pages fall back to Servo automatically. Measured: HN
-front page 0.52s, the Wikipedia "Servo" article 0.89s — both `via http`.
+v0.3 — link-following (`sr -l N`) + a warm-engine daemon (`sr-engine`). Built on
+v0.2's tiered fetch (rich pages read `via http` in ~0.5–0.9s, no engine; thin /
+JS-gated pages fall back to Servo).
 
-Roadmap: link-follow (`sr -l N`) for in-terminal navigation, a persistent
-warm-engine daemon (amortize Servo cold-start to ~0), and an optional sixel/kitty
-image lane.
+Roadmap: an optional sixel/kitty image lane, and reading-history/back navigation.

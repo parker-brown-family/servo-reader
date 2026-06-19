@@ -1,9 +1,11 @@
 """sr — read any website in your terminal as clean markdown, via the Servo engine.
 
     sr example.com
-    sr https://news.ycombinator.com
-    sr --raw example.com | glow -      # pipe the raw markdown elsewhere
-    sr --width 100 en.wikipedia.org/wiki/Servo_(software)
+    sr --links en.wikipedia.org/wiki/Servo_(software)   # show numbered links
+    sr -l 3                                             # follow link 3 from the last page
+    sr --raw example.com | glow -                       # pipe the raw markdown elsewhere
+
+Tip: `sr-engine start` launches a warm Servo so engine-tier reads skip cold start.
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ import shutil
 import subprocess
 import sys
 
-from . import __version__
+from . import __version__, nav
 from .fetch import fetch_markdown
 from .render import render
 
@@ -37,12 +39,32 @@ def _eprint(*a: object) -> None:
     print(*a, file=sys.stderr, flush=True)
 
 
+def _render_link_index(links: list[tuple[str, str]], width: int, color: bool) -> str:
+    """A numbered link list for `--links`, with OSC-8 clickable targets."""
+    lines = ["", "\033[1mLinks\033[0m" if color else "Links",
+             ("\033[2m" + "─" * 5 + "\033[0m") if color else "─────"]
+    n_w = len(str(len(links)))
+    text_w = max(20, width - n_w - 4)
+    for i, (text, url) in enumerate(links, 1):
+        label = text if len(text) <= text_w else text[: text_w - 1] + "…"
+        if color:
+            link = f"\033]8;;{url}\033\\\033[38;2;38;139;210m\033[4m{label}\033[0m\033]8;;\033\\"
+            lines.append(f"\033[2m[\033[0m\033[38;2;181;137;0m{i:>{n_w}}\033[0m\033[2m]\033[0m {link}")
+        else:
+            lines.append(f"[{i:>{n_w}}] {label}  {url}")
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="sr",
         description="Ultra-lightweight terminal web reader (Servo engine → markdown).",
     )
-    p.add_argument("url", help="URL to read (scheme optional; https:// assumed)")
+    p.add_argument("url", nargs="?", help="URL to read (scheme optional; https:// assumed)")
+    p.add_argument("-l", "--follow", type=int, metavar="N",
+                   help="follow link N from the last page read (see --links)")
+    p.add_argument("-L", "--links", action="store_true",
+                   help="append a numbered index of the page's links")
     p.add_argument("--raw", action="store_true", help="emit raw markdown, no ANSI rendering")
     p.add_argument("--no-color", action="store_true", help="render layout but without ANSI color")
     p.add_argument("--width", type=int, default=0, help="wrap width (default: terminal, max 100)")
@@ -62,6 +84,21 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--version", action="version", version=f"servo-reader {__version__}")
     args = p.parse_args(argv)
 
+    # Resolve the target: an explicit URL, or link N from the last page (`-l N`).
+    if args.follow is not None:
+        if args.url:
+            p.error("give a URL or -l N, not both")
+        target = nav.resolve(args.follow)
+        if not target:
+            st = nav.load()
+            have = len(st.get("links", [])) if st else 0
+            _eprint(f"\033[31m✗ no saved link {args.follow}"
+                    f"{f' (last page had {have} links)' if have else ' (read a page first)'}\033[0m")
+            return 1
+        args.url = target
+    elif not args.url:
+        p.error("a URL is required (or -l N to follow a link from the last page)")
+
     _note = {
         "auto": "HTTP → Servo fallback",
         "http": "HTTP only",
@@ -80,6 +117,10 @@ def main(argv: list[str] | None = None) -> int:
         _eprint(f"\033[31m✗ {type(e).__name__}: {e}\033[0m")
         return 1
 
+    # Persist the page's links so a later `sr -l N` can follow them.
+    links = nav.extract_links(page.markdown)
+    nav.save(page.url, links)
+
     if args.raw:
         sys.stdout.write(page.markdown if page.markdown.endswith("\n") else page.markdown + "\n")
         return 0
@@ -96,14 +137,21 @@ def main(argv: list[str] | None = None) -> int:
             header = f"{page.title}\n{page.url}\n{bar}\n\n"
 
     body = render(page.markdown, width=width, color=bool(color))
-    footer = ""
+
+    index = ""
+    if args.links and links:
+        index = _render_link_index(links, width, bool(color))
+
     m = page.meta
     if color:
+        hint = f" · {len(links)} links → sr -l N" if links and not args.links else ""
         footer = (
             f"\n\033[2m─── via {m.get('source', '?')} · {m.get('out_chars', 0):,} chars"
-            f"{' · truncated' if m.get('truncated') else ''} ───\033[0m\n"
+            f"{' · truncated' if m.get('truncated') else ''}{hint} ───\033[0m\n"
         )
-    out = header + body + footer
+    else:
+        footer = ""
+    out = header + body + index + footer
 
     # Page through less for long output on a tty, like a real reader.
     if not args.no_pager and sys.stdout.isatty() and out.count("\n") > _term_height():

@@ -13,6 +13,7 @@ Tiered strategy (the whole point of a *light* reader):
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 
@@ -80,8 +81,22 @@ def _http_fetch(url: str, timeout: float) -> tuple[str, str, str] | None:
 def _servo_fetch(
     url: str, timeout: float, settle: bool, headless: bool
 ) -> tuple[str, str, str]:
-    """Engine path: render with a real Servo and read the post-JS DOM."""
+    """Engine path: render with a real Servo and read the post-JS DOM.
+
+    Auto-attaches to a warm `sr-engine` daemon if one is running (and the caller
+    hasn't already pinned `$SERVO_WEBDRIVER`), avoiding a per-call cold start.
+    """
     from servo_agent.browser import ServoBrowser
+
+    if not os.environ.get("SERVO_WEBDRIVER"):
+        try:
+            from . import daemon
+
+            ep = daemon.endpoint()
+            if ep:
+                os.environ["SERVO_WEBDRIVER"] = ep
+        except Exception:  # noqa: BLE001 — daemon discovery is best-effort
+            pass
 
     with ServoBrowser(headless=headless) as br:
         br.navigate(url, timeout=timeout, settle=settle)

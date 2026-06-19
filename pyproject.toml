@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "servo-reader"
-version = "0.2.0"
+version = "0.3.0"
 description = "Ultra-lightweight terminal web reader: render any site as clean markdown using the Servo engine."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,6 +21,7 @@ dev = ["pytest>=8.0", "ruff>=0.5"]
 [project.scripts]
 sr = "servo_reader.__main__:main"
 servo-reader = "servo_reader.__main__:main"
+sr-engine = "servo_reader.daemon:main"
 
 [tool.uv.sources]
 # Public sibling project — pulled from GitHub so `servo-reader` builds standalone
