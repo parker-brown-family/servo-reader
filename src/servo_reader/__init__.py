@@ -5,7 +5,7 @@ markdown, and render that markdown to the terminal. Lynx-grade weight, modern
 engine fidelity.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .fetch import fetch_markdown
 from .render import render

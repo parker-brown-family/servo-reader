@@ -50,16 +50,31 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-settle", action="store_true", help="skip post-load quiet wait (faster)")
     p.add_argument("--no-pager", action="store_true", help="never page output through less")
     p.add_argument("--timeout", type=float, default=30.0, help="navigation timeout (s)")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument(
+        "--engine", choices=["auto", "http", "servo"], default="auto",
+        help="fetch strategy (default: auto = cheap HTTP, fall back to Servo if thin)",
+    )
+    g.add_argument("--http", dest="engine", action="store_const", const="http",
+                   help="force the cheap HTTP fetch (no engine, instant)")
+    g.add_argument("--servo", dest="engine", action="store_const", const="servo",
+                   help="force the Servo engine (renders JS)")
     p.add_argument("--version", action="version", version=f"servo-reader {__version__}")
     args = p.parse_args(argv)
 
-    _eprint(f"\033[2m… fetching {args.url} via Servo (debug build — first paint is slow)\033[0m")
+    _note = {
+        "auto": "HTTP → Servo fallback",
+        "http": "HTTP only",
+        "servo": "Servo engine (debug build — first paint is slow)",
+    }[args.engine]
+    _eprint(f"\033[2m… fetching {args.url} ({_note})\033[0m")
     try:
         page = fetch_markdown(
             args.url,
             max_chars=args.max_chars,
             settle=not args.no_settle,
             timeout=args.timeout,
+            engine=args.engine,
         )
     except Exception as e:  # noqa: BLE001 — top-level CLI guard
         _eprint(f"\033[31m✗ {type(e).__name__}: {e}\033[0m")
@@ -85,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     m = page.meta
     if color:
         footer = (
-            f"\n\033[2m─── {m.get('out_chars', 0):,} chars"
+            f"\n\033[2m─── via {m.get('source', '?')} · {m.get('out_chars', 0):,} chars"
             f"{' · truncated' if m.get('truncated') else ''} ───\033[0m\n"
         )
     out = header + body + footer
