@@ -64,7 +64,7 @@ def test_daemon_endpoint_none_when_not_running(state):
 def test_daemon_alive_checks_pid_and_port(state, monkeypatch):
     _, daemon = state
     # Register a fake engine whose pid is alive but port is closed → not alive.
-    daemon._engine_file().write_text('{"pid": %d, "host": "127.0.0.1", "port": 1}' % 1)
+    daemon._engine_file().write_text('{"pid": 1, "host": "127.0.0.1", "port": 1}')
     monkeypatch.setattr(daemon.os, "kill", lambda *a: None)  # pretend pid 1 exists
     monkeypatch.setattr(daemon, "_port_open", lambda h, p, timeout=1.0: False)
     assert daemon.endpoint() is None

@@ -18,7 +18,6 @@ import re
 from dataclasses import dataclass
 
 import requests
-
 from servo_agent.distill import distill
 
 _TRUNC_MARKER = "[truncated at "

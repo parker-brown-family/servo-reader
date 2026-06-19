@@ -18,7 +18,7 @@ import sys
 
 from . import __version__, nav
 from .fetch import fetch_markdown
-from .render import render
+from .render import BOLD, C_BULLET, C_LINK, DIM, OSC8, RESET, UNDER, render
 
 
 def _term_width(default: int = 80) -> int:
@@ -41,15 +41,15 @@ def _eprint(*a: object) -> None:
 
 def _render_link_index(links: list[tuple[str, str]], width: int, color: bool) -> str:
     """A numbered link list for `--links`, with OSC-8 clickable targets."""
-    lines = ["", "\033[1mLinks\033[0m" if color else "Links",
-             ("\033[2m" + "─" * 5 + "\033[0m") if color else "─────"]
+    lines = ["", f"{BOLD}Links{RESET}" if color else "Links",
+             f"{DIM}{'─' * 5}{RESET}" if color else "─────"]
     n_w = len(str(len(links)))
     text_w = max(20, width - n_w - 4)
     for i, (text, url) in enumerate(links, 1):
         label = text if len(text) <= text_w else text[: text_w - 1] + "…"
         if color:
-            link = f"\033]8;;{url}\033\\\033[38;2;38;139;210m\033[4m{label}\033[0m\033]8;;\033\\"
-            lines.append(f"\033[2m[\033[0m\033[38;2;181;137;0m{i:>{n_w}}\033[0m\033[2m]\033[0m {link}")
+            link = OSC8.format(url=url, text=f"{C_LINK}{UNDER}{label}{RESET}")
+            lines.append(f"{DIM}[{RESET}{C_BULLET}{i:>{n_w}}{RESET}{DIM}]{RESET} {link}")
         else:
             lines.append(f"[{i:>{n_w}}] {label}  {url}")
     return "\n".join(lines) + "\n"
@@ -92,8 +92,8 @@ def main(argv: list[str] | None = None) -> int:
         if not target:
             st = nav.load()
             have = len(st.get("links", [])) if st else 0
-            _eprint(f"\033[31m✗ no saved link {args.follow}"
-                    f"{f' (last page had {have} links)' if have else ' (read a page first)'}\033[0m")
+            why = f" (last page had {have} links)" if have else " (read a page first)"
+            _eprint(f"\033[31m✗ no saved link {args.follow}{why}\033[0m")
             return 1
         args.url = target
     elif not args.url:
@@ -157,7 +157,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_pager and sys.stdout.isatty() and out.count("\n") > _term_height():
         pager = os.environ.get("PAGER", "less -R")
         try:
-            proc = subprocess.Popen(pager.split(), stdin=subprocess.PIPE, env={**os.environ, "LESS": "R"})
+            env = {**os.environ, "LESS": "R"}
+            proc = subprocess.Popen(pager.split(), stdin=subprocess.PIPE, env=env)
             proc.communicate(out.encode("utf-8", "replace"))
             return proc.returncode or 0
         except Exception:  # noqa: BLE001 — pager optional

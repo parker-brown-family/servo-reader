@@ -13,14 +13,23 @@ RICH_HTML = (
 SPA_SHELL = '<html><head><title>App</title></head><body><div id="root"></div></body></html>'
 
 
+def _boom(msg):
+    def _raise(*a, **k):
+        raise AssertionError(msg)
+
+    return _raise
+
+
 def test_good_enough_threshold():
     assert fetch._good_enough("x" * fetch._MIN_GOOD)
     assert not fetch._good_enough("too short")
 
 
 def test_http_path_wins_for_rich_html(monkeypatch):
-    monkeypatch.setattr(fetch, "_http_fetch", lambda url, timeout: ("https://x/", "Real Article", RICH_HTML))
-    monkeypatch.setattr(fetch, "_servo_fetch", lambda *a, **k: (_ for _ in ()).throw(AssertionError("engine should not run")))
+    monkeypatch.setattr(
+        fetch, "_http_fetch", lambda url, timeout: ("https://x/", "Real Article", RICH_HTML)
+    )
+    monkeypatch.setattr(fetch, "_servo_fetch", _boom("engine should not run"))
     page = fetch.fetch_markdown("x", engine="auto")
     assert page.meta["source"] == "http"
     assert "server-rendered prose" in page.markdown
@@ -48,8 +57,10 @@ def test_auto_falls_back_when_http_fails(monkeypatch):
 
 
 def test_force_http_returns_thin_without_engine(monkeypatch):
-    monkeypatch.setattr(fetch, "_http_fetch", lambda url, timeout: ("https://x/", "App", SPA_SHELL))
-    monkeypatch.setattr(fetch, "_servo_fetch", lambda *a, **k: (_ for _ in ()).throw(AssertionError("forced http must not call engine")))
+    monkeypatch.setattr(
+        fetch, "_http_fetch", lambda url, timeout: ("https://x/", "App", SPA_SHELL)
+    )
+    monkeypatch.setattr(fetch, "_servo_fetch", _boom("forced http must not call engine"))
     page = fetch.fetch_markdown("x", engine="http")
     assert page.meta["source"] == "http"
 

@@ -93,7 +93,8 @@ def _find_binary() -> str | None:
 def start() -> dict:
     info = _read()
     if _alive(info):
-        print(f"already running (pid {info['pid']}) at {info['host']}:{info['port']}", file=sys.stderr)
+        print(f"already running (pid {info['pid']}) at "
+              f"{info['host']}:{info['port']}", file=sys.stderr)
         return info
     binary = _find_binary()
     if not binary:
@@ -142,7 +143,8 @@ def stop() -> None:
 def status() -> int:
     info = _read()
     if _alive(info):
-        print(f"running  pid={info['pid']}  endpoint={info['host']}:{info['port']}  binary={info.get('binary')}")
+        print(f"running  pid={info['pid']}  endpoint={info['host']}:{info['port']}  "
+              f"binary={info.get('binary')}")
         return 0
     print("not running")
     return 1
