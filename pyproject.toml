@@ -23,7 +23,11 @@ sr = "servo_reader.__main__:main"
 servo-reader = "servo_reader.__main__:main"
 
 [tool.uv.sources]
-servo-agent = { path = "../servo-agent", editable = true }
+# Public sibling project — pulled from GitHub so `servo-reader` builds standalone
+# (a fresh `git clone` + `uv sync` works without a local checkout). For local
+# co-development against a sibling checkout, override with:
+#   servo-agent = { path = "../servo-agent", editable = true }
+servo-agent = { git = "https://github.com/parker-brown-family/servo-agent.git", branch = "main" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/servo_reader"]

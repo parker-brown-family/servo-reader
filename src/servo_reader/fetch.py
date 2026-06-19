@@ -10,7 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from servo_agent.browser import ServoBrowser
-from servo_agent.distill import _distill
+from servo_agent.distill import distill
+
+_TRUNC_MARKER = "[truncated at "
 
 
 @dataclass
@@ -42,5 +44,6 @@ def fetch_markdown(
         final_url = br.current_url() or url
         title = (br.title() or "").strip()
         html = br.read_html()
-    md, meta = _distill(html, url=final_url, max_chars=max_chars)
+    md = distill(html, url=final_url, max_chars=max_chars)
+    meta = {"out_chars": len(md), "truncated": md.rstrip().endswith("chars]") and _TRUNC_MARKER in md}
     return Page(url=final_url, title=title, markdown=md, meta=meta)

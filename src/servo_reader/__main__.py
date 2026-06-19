@@ -85,8 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     m = page.meta
     if color:
         footer = (
-            f"\n\033[2m─── {m.get('extractor', '?')} · "
-            f"{m.get('out_chars', 0):,} chars"
+            f"\n\033[2m─── {m.get('out_chars', 0):,} chars"
             f"{' · truncated' if m.get('truncated') else ''} ───\033[0m\n"
         )
     out = header + body + footer

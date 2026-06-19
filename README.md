@@ -25,24 +25,39 @@ URL ─▶ Servo (headless servoshell + WebDriver)
                 └─ servo_reader.render  (zero-dep ANSI + OSC-8 links)  ─▶ terminal
 ```
 
-It stands on [`servo-agent`](../servo-agent) for the engine plumbing and the
-distiller, and adds a tiny terminal markdown renderer (no third-party deps — that
-is the whole point of a *light* reader).
+It stands on [`servo-agent`](https://github.com/parker-brown-family/servo-agent)
+for the engine plumbing and the distiller, and adds a tiny terminal markdown
+renderer (no third-party deps — that is the whole point of a *light* reader).
 
 ## Install / run
 
-This is a [uv](https://docs.astral.sh/uv/) project with a path dependency on the
-sibling `servo-agent`. From this directory:
+This is a [uv](https://docs.astral.sh/uv/) project. `servo-agent` is pulled
+straight from GitHub, so a fresh clone builds standalone:
 
 ```bash
+git clone https://github.com/parker-brown-family/servo-reader
+cd servo-reader
 uv sync
 uv run sr example.com
 ```
 
-A built `servoshell` must be discoverable (it is, in the sibling `servo/`
-checkout). To point elsewhere set `$SERVOSHELL`, or attach to an already-running
-engine with `$SERVO_WEBDRIVER=host:port` (skips per-call browser launch — much
-faster).
+> Co-developing against a local `servo-agent` checkout? Override the source in
+> `pyproject.toml` with `servo-agent = { path = "../servo-agent", editable = true }`.
+
+### The Servo engine
+
+`servo-reader` needs a built `servoshell` binary (Servo's shell). Point it at one
+of:
+
+```bash
+export SERVOSHELL=/path/to/servo/target/debug/servoshell   # a local build, or
+export SERVO_WEBDRIVER=host:port                            # an already-running engine
+```
+
+Using `$SERVO_WEBDRIVER` against a warm engine skips the per-call browser launch
+and is **much** faster than cold-starting a debug `servoshell` each time. See
+[Servo's build docs](https://book.servo.org/hacking/building-servo.html) to
+produce the binary.
 
 ## Options
 
