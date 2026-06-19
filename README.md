@@ -80,6 +80,9 @@ produce the binary.
 |------|---------|
 | `-L`, `--links` | append a numbered index of the page's links |
 | `-l N`, `--follow N` | follow link `N` from the last page read |
+| `-b`, `--back` / `-f`, `--forward` | move through visit history |
+| `--history` | list recent pages and exit |
+| `--images auto\|kitty\|sixel\|off` | inline images (default `auto`-detect; needs `[images]` extra) |
 | `--http` | force the cheap HTTP fetch (instant, no engine) |
 | `--servo` | force the Servo engine (renders JS) |
 | `--engine auto\|http\|servo` | fetch strategy (default `auto`: HTTP → Servo fallback) |
@@ -102,8 +105,34 @@ sr -l 12                                             # …and keep going (the ne
                                                      #   page's links are saved too)
 ```
 
-State lives in `$XDG_STATE_HOME/servo-reader/last.json` — a single small file, no
-daemon required for navigation.
+Reads are also recorded in a **back/forward history** with browser semantics:
+
+```bash
+sr --history    # list visited pages (▶ marks where you are)
+sr --back       # previous page
+sr --forward    # forward again (a new read from a back-position re-branches)
+```
+
+State lives in `$XDG_STATE_HOME/servo-reader/` (`last.json` links, `history.json`
+stack) — small files, no daemon required for navigation.
+
+## Images (kitty / sixel)
+
+Optionally render a page's figures inline:
+
+```bash
+pip install 'servo-reader[images]'          # adds Pillow (the only extra dep)
+sr --images auto en.wikipedia.org/wiki/Servo_(software)
+```
+
+`auto` detects the terminal's graphics protocol and **stays off when it can't be
+sure** — so it never garbles a terminal that can't decode graphics. Supported:
+**kitty / WezTerm / Ghostty** (kitty protocol) and **foot / xterm-with-sixel /
+Black Box** (sixel). Force one with `--images kitty|sixel`.
+
+> Note: terminals on the **alacritty backend — including terminal-delight —
+> support neither protocol**, so images won't display there (you'll see a
+> `🖼 alt-text` placeholder instead). Use a kitty/sixel terminal for the image lane.
 
 ## Warm engine (skip the cold start)
 
@@ -123,8 +152,10 @@ sr-engine stop
 
 ## Status
 
-v0.3 — link-following (`sr -l N`) + a warm-engine daemon (`sr-engine`). Built on
-v0.2's tiered fetch (rich pages read `via http` in ~0.5–0.9s, no engine; thin /
-JS-gated pages fall back to Servo).
+v0.4 — inline images (kitty/sixel, opt-in `[images]` extra) + back/forward
+history (`--back`/`--forward`/`--history`). Builds on v0.3 link-following +
+warm-engine daemon and v0.2 tiered fetch (rich pages `via http` in ~0.5–0.9s).
 
-Roadmap: an optional sixel/kitty image lane, and reading-history/back navigation.
+The core stays tiny and dependency-free; the image lane is the only optional
+dependency (Pillow). That's the feature set rounded out — open an issue for what's
+next.

@@ -139,13 +139,17 @@ def wrap_segments(segs: list[Seg], width: int, indent: str = "", hang: str = "")
 # ── block parsing ───────────────────────────────────────────────────────────
 _H = re.compile(r"^(#{1,6})\s+(.*)$")
 _HR = re.compile(r"^\s{0,3}([-*_])(?:\s*\1){2,}\s*$")
+# A line that is *only* an image — the figure case worth rendering as graphics.
+_IMG = re.compile(r"^\s*!\[([^\]]*)\]\(((?:\([^()\s]*\)|[^()\s])*)(?:\s+\"[^\"]*\")?\)\s*$")
 _UL = re.compile(r"^(\s*)[-*+]\s+(.*)$")
 _OL = re.compile(r"^(\s*)(\d+)[.)]\s+(.*)$")
 _QUOTE = re.compile(r"^\s*>\s?(.*)$")
 _FENCE = re.compile(r"^\s*(```|~~~)(.*)$")
 
 
-def render(md: str, width: int = 80, color: bool = True) -> str:
+def render(md: str, width: int = 80, color: bool = True, image_renderer=None) -> str:
+    """Markdown → ANSI. ``image_renderer(url, alt) -> str|None``, when given, is
+    called for standalone-image lines; a falsy return falls back to a placeholder."""
     width = max(40, width)
     lines = md.replace("\r\n", "\n").split("\n")
     out: list[str] = []
@@ -173,6 +177,20 @@ def render(md: str, width: int = 80, color: bool = True) -> str:
                 txt = "  " + bl
                 out.append((C_FENCE + txt + RESET) if color else txt)
             out.append("")
+            continue
+
+        # standalone image — render as graphics if we can, else a placeholder
+        im = _IMG.match(line)
+        if im:
+            alt, url = im.group(1).strip(), im.group(2)
+            art = image_renderer(url, alt) if image_renderer else None
+            if art:
+                out.append(art.rstrip("\n"))
+            else:
+                tag = f"🖼  {alt or url}"
+                out.append((DIM + tag + RESET) if color else f"[image: {alt or url}]")
+            out.append("")
+            i += 1
             continue
 
         # heading

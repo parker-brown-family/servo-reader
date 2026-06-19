@@ -16,7 +16,7 @@ import shutil
 import subprocess
 import sys
 
-from . import __version__, nav
+from . import __version__, images, nav
 from .fetch import fetch_markdown
 from .render import BOLD, C_BULLET, C_LINK, DIM, OSC8, RESET, UNDER, render
 
@@ -55,6 +55,36 @@ def _render_link_index(links: list[tuple[str, str]], width: int, color: bool) ->
     return "\n".join(lines) + "\n"
 
 
+def _make_image_renderer(mode_arg: str, width: int):
+    """Build the standalone-image callback, or None if images are off/unsupported."""
+    mode = images.detect() if mode_arg == "auto" else (None if mode_arg == "off" else mode_arg)
+    if not mode:
+        return None
+    if not images.available():
+        if mode_arg in ("kitty", "sixel"):
+            _eprint("\033[2m(images need Pillow: pip install servo-reader[images])\033[0m")
+        return None
+    return lambda url, alt: images.render_image(url, mode, width)
+
+
+def _print_history(color: bool) -> int:
+    stack, cur = nav.history()
+    if not stack:
+        print("no history yet")
+        return 0
+    for i, entry in enumerate(stack):
+        mark = "▶" if i == cur else " "
+        title = entry.get("title") or entry["url"]
+        if color:
+            num = f"{C_BULLET}{i:>3}{RESET}"
+            print(f"{mark} {num} {title}\n      {DIM}{entry['url']}{RESET}")
+        else:
+            print(f"{mark} {i:>3} {title}\n      {entry['url']}")
+    hint = "\033[2m─── sr --back / --forward to move ───\033[0m" if color else "(--back/--forward)"
+    _eprint(hint)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="sr",
@@ -65,6 +95,11 @@ def main(argv: list[str] | None = None) -> int:
                    help="follow link N from the last page read (see --links)")
     p.add_argument("-L", "--links", action="store_true",
                    help="append a numbered index of the page's links")
+    p.add_argument("-b", "--back", action="store_true", help="go back to the previous page")
+    p.add_argument("-f", "--forward", action="store_true", help="go forward again")
+    p.add_argument("--history", action="store_true", help="list recent pages and exit")
+    p.add_argument("--images", choices=["auto", "kitty", "sixel", "off"], default="auto",
+                   help="inline images: auto-detect terminal (default), force a protocol, or off")
     p.add_argument("--raw", action="store_true", help="emit raw markdown, no ANSI rendering")
     p.add_argument("--no-color", action="store_true", help="render layout but without ANSI color")
     p.add_argument("--width", type=int, default=0, help="wrap width (default: terminal, max 100)")
@@ -84,10 +119,31 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--version", action="version", version=f"servo-reader {__version__}")
     args = p.parse_args(argv)
 
-    # Resolve the target: an explicit URL, or link N from the last page (`-l N`).
-    if args.follow is not None:
-        if args.url:
-            p.error("give a URL or -l N, not both")
+    color = not args.no_color and (sys.stdout.isatty() or os.environ.get("FORCE_COLOR"))
+
+    # --history is a terminal action: list and exit.
+    if args.history:
+        return _print_history(bool(color))
+
+    # Resolve the navigation target and whether it's a *new* visit (record=True)
+    # or a move within existing history (back/forward → don't re-record).
+    actions = sum([bool(args.url), args.follow is not None, args.back, args.forward])
+    if actions > 1:
+        p.error("choose one of: URL, -l/--follow N, -b/--back, -f/--forward")
+    record = True
+    if args.back:
+        target = nav.go_back()
+        if not target:
+            _eprint("\033[31m✗ no earlier page in history\033[0m")
+            return 1
+        record = False
+    elif args.forward:
+        target = nav.go_forward()
+        if not target:
+            _eprint("\033[31m✗ already at the most recent page\033[0m")
+            return 1
+        record = False
+    elif args.follow is not None:
         target = nav.resolve(args.follow)
         if not target:
             st = nav.load()
@@ -95,9 +151,11 @@ def main(argv: list[str] | None = None) -> int:
             why = f" (last page had {have} links)" if have else " (read a page first)"
             _eprint(f"\033[31m✗ no saved link {args.follow}{why}\033[0m")
             return 1
-        args.url = target
-    elif not args.url:
-        p.error("a URL is required (or -l N to follow a link from the last page)")
+    elif args.url:
+        target = args.url
+    else:
+        p.error("a URL is required (or -l N / --back / --forward / --history)")
+    args.url = target
 
     _note = {
         "auto": "HTTP → Servo fallback",
@@ -117,16 +175,17 @@ def main(argv: list[str] | None = None) -> int:
         _eprint(f"\033[31m✗ {type(e).__name__}: {e}\033[0m")
         return 1
 
-    # Persist the page's links so a later `sr -l N` can follow them.
+    # Persist links (for `sr -l N`) and record the visit (for `sr --back`).
     links = nav.extract_links(page.markdown)
     nav.save(page.url, links)
+    if record:
+        nav.push_history(page.url, page.title)
 
     if args.raw:
         sys.stdout.write(page.markdown if page.markdown.endswith("\n") else page.markdown + "\n")
         return 0
 
     width = args.width or min(_term_width(), 100)
-    color = not args.no_color and (sys.stdout.isatty() or os.environ.get("FORCE_COLOR"))
 
     header = ""
     if page.title:
@@ -136,7 +195,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             header = f"{page.title}\n{page.url}\n{bar}\n\n"
 
-    body = render(page.markdown, width=width, color=bool(color))
+    img_cb = _make_image_renderer(args.images, width) if not args.no_color else None
+    body = render(page.markdown, width=width, color=bool(color), image_renderer=img_cb)
 
     index = ""
     if args.links and links:

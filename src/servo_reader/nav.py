@@ -70,3 +70,70 @@ def resolve(n: int) -> str | None:
         if link.get("n") == n:
             return link.get("url")
     return None
+
+
+# ── history: a back/forward stack with a cursor (browser semantics) ───────────
+_HIST_MAX = 200
+
+
+def _hist_file() -> Path:
+    return _state_dir() / "history.json"
+
+
+def _read_hist() -> dict:
+    f = _hist_file()
+    if f.exists():
+        try:
+            h = json.loads(f.read_text())
+            h.setdefault("stack", [])
+            h.setdefault("cursor", len(h["stack"]) - 1)
+            return h
+        except (OSError, ValueError):
+            pass
+    return {"stack": [], "cursor": -1}
+
+
+def _write_hist(h: dict) -> None:
+    _hist_file().write_text(json.dumps(h))
+
+
+def push_history(url: str, title: str = "") -> None:
+    """Record a new visit. Truncates any forward entries (a new branch)."""
+    h = _read_hist()
+    stack, cur = h["stack"], h["cursor"]
+    del stack[cur + 1:]
+    if stack and stack[-1]["url"] == url:
+        if title:
+            stack[-1]["title"] = title
+    else:
+        stack.append({"url": url, "title": title})
+    if len(stack) > _HIST_MAX:
+        del stack[: len(stack) - _HIST_MAX]
+    h["cursor"] = len(stack) - 1
+    _write_hist(h)
+
+
+def go_back() -> str | None:
+    """Move the cursor back one and return that URL (or ``None`` at the start)."""
+    h = _read_hist()
+    if h["cursor"] <= 0:
+        return None
+    h["cursor"] -= 1
+    _write_hist(h)
+    return h["stack"][h["cursor"]]["url"]
+
+
+def go_forward() -> str | None:
+    """Move the cursor forward one and return that URL (or ``None`` at the end)."""
+    h = _read_hist()
+    if h["cursor"] >= len(h["stack"]) - 1:
+        return None
+    h["cursor"] += 1
+    _write_hist(h)
+    return h["stack"][h["cursor"]]["url"]
+
+
+def history() -> tuple[list[dict], int]:
+    """``(stack, cursor)`` — the visit list and the current position."""
+    h = _read_hist()
+    return h["stack"], h["cursor"]

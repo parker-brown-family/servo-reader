@@ -55,6 +55,40 @@ def test_resolve_without_state_is_none(state):
     assert nav.load() is None
 
 
+def test_history_push_back_forward(state):
+    nav, _ = state
+    nav.push_history("https://a", "A")
+    nav.push_history("https://b", "B")
+    nav.push_history("https://c", "C")
+    stack, cur = nav.history()
+    assert [e["url"] for e in stack] == ["https://a", "https://b", "https://c"]
+    assert cur == 2
+    assert nav.go_back() == "https://b"
+    assert nav.go_back() == "https://a"
+    assert nav.go_back() is None  # at the start
+    assert nav.go_forward() == "https://b"
+
+
+def test_history_new_visit_truncates_forward(state):
+    nav, _ = state
+    for u in ("https://a", "https://b", "https://c"):
+        nav.push_history(u)
+    nav.go_back()  # cursor at b
+    nav.push_history("https://d")  # new branch from b
+    stack, cur = nav.history()
+    assert [e["url"] for e in stack] == ["https://a", "https://b", "https://d"]
+    assert cur == 2
+    assert nav.go_forward() is None  # nothing ahead of the new branch
+
+
+def test_history_dedupes_consecutive(state):
+    nav, _ = state
+    nav.push_history("https://a", "A")
+    nav.push_history("https://a", "A2")
+    stack, _ = nav.history()
+    assert len(stack) == 1 and stack[0]["title"] == "A2"
+
+
 def test_daemon_endpoint_none_when_not_running(state):
     _, daemon = state
     assert daemon.endpoint() is None
