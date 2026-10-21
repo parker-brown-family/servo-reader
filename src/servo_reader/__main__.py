@@ -16,8 +16,10 @@ import shutil
 import subprocess
 import sys
 
+from servo_agent.browser import ServoNotBuilt
+
 from . import __version__, images, nav
-from .fetch import fetch_markdown
+from .fetch import ENGINE_HINT, fetch_markdown
 from .render import BOLD, C_BULLET, C_LINK, DIM, OSC8, RESET, UNDER, render
 
 
@@ -171,9 +173,17 @@ def main(argv: list[str] | None = None) -> int:
             timeout=args.timeout,
             engine=args.engine,
         )
+    except ServoNotBuilt:
+        _eprint(f"\033[31m✗ no servoshell found. To render with Servo, {ENGINE_HINT}.\033[0m")
+        return 1
     except Exception as e:  # noqa: BLE001 — top-level CLI guard
         _eprint(f"\033[31m✗ {type(e).__name__}: {e}\033[0m")
         return 1
+    if page.meta.get("servo_skipped"):
+        _eprint(
+            "\033[2m(Servo rendering skipped: no servoshell found. "
+            f"To enable it, {ENGINE_HINT}.)\033[0m"
+        )
 
     # Persist links (for `sr -l N`) and record the visit (for `sr --back`).
     links = nav.extract_links(page.markdown)
