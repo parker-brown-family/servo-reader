@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+from servo_agent.browser import ServoNotBuilt
+
 import servo_reader.fetch as fetch
 
 RICH_HTML = (
@@ -11,6 +14,11 @@ RICH_HTML = (
     + "</article></body></html>"
 )
 SPA_SHELL = '<html><head><title>App</title></head><body><div id="root"></div></body></html>'
+# Shaped like today's example.com: one short paragraph, well under _MIN_GOOD.
+THIN_HTML = (
+    "<html><head><title>Example Domain</title></head><body>"
+    "<p>This domain is for use in documentation examples.</p></body></html>"
+)
 
 
 def _boom(msg):
@@ -18,6 +26,10 @@ def _boom(msg):
         raise AssertionError(msg)
 
     return _raise
+
+
+def _no_engine(*a, **k):
+    raise ServoNotBuilt("servoshell binary not found")
 
 
 def test_good_enough_threshold():
@@ -70,6 +82,40 @@ def test_force_http_failure_is_graceful(monkeypatch):
     page = fetch.fetch_markdown("x", engine="http")
     assert page.meta["source"] == "http-failed"
     assert "failed" in page.markdown
+
+
+def test_auto_keeps_thin_http_page_when_no_engine(monkeypatch):
+    monkeypatch.setattr(
+        fetch, "_http_fetch", lambda url, timeout: ("https://x/", "Example Domain", THIN_HTML)
+    )
+    monkeypatch.setattr(fetch, "_servo_fetch", _no_engine)
+    page = fetch.fetch_markdown("x", engine="auto")
+    assert page.meta["source"] == "http"
+    assert page.meta["servo_skipped"] is True
+    assert "documentation examples" in page.markdown
+
+
+def test_rich_http_page_is_not_marked_skipped(monkeypatch):
+    monkeypatch.setattr(
+        fetch, "_http_fetch", lambda url, timeout: ("https://x/", "Real Article", RICH_HTML)
+    )
+    monkeypatch.setattr(fetch, "_servo_fetch", _boom("engine should not run"))
+    page = fetch.fetch_markdown("x", engine="auto")
+    assert "servo_skipped" not in page.meta
+
+
+def test_forced_servo_without_engine_raises(monkeypatch):
+    monkeypatch.setattr(fetch, "_http_fetch", _boom("forced servo must not fetch over http"))
+    monkeypatch.setattr(fetch, "_servo_fetch", _no_engine)
+    with pytest.raises(ServoNotBuilt):
+        fetch.fetch_markdown("x", engine="servo")
+
+
+def test_auto_without_engine_raises_when_http_also_failed(monkeypatch):
+    monkeypatch.setattr(fetch, "_http_fetch", lambda url, timeout: None)
+    monkeypatch.setattr(fetch, "_servo_fetch", _no_engine)
+    with pytest.raises(ServoNotBuilt):
+        fetch.fetch_markdown("x", engine="auto")
 
 
 def test_scheme_is_added(monkeypatch):

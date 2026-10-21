@@ -12,10 +12,10 @@ calm wrapped markdown in your terminal — no pixels, no Chromium.
 back thin / JS-gated. So the giant backend is the *fallback*, not the floor.
 
 ```
-sr example.com
+sr --links https://servo.org/about/
 sr https://news.ycombinator.com
 sr en.wikipedia.org/wiki/Servo_(software)
-sr --raw example.com | glow -          # pipe raw markdown elsewhere
+sr --raw servo.org/about/ | glow -     # pipe raw markdown elsewhere
 sr --width 100 --no-pager some.blog/post
 ```
 
@@ -42,14 +42,20 @@ renderer (no third-party deps — that is the whole point of a *light* reader).
 
 ## Install / run
 
-This is a [uv](https://docs.astral.sh/uv/) project. `servo-agent` is pulled
-straight from GitHub, so a fresh clone builds standalone:
+This is a [uv](https://docs.astral.sh/uv/) project. It is not published on PyPI.
+`servo-agent` is pulled straight from GitHub, so a fresh clone builds standalone:
 
 ```bash
 git clone https://github.com/parker-brown-family/servo-reader
 cd servo-reader
 uv sync
-uv run sr example.com
+uv run sr --links https://servo.org/about/
+```
+
+To put `sr` on your `PATH` instead, install it as a uv tool:
+
+```bash
+uv tool install git+https://github.com/parker-brown-family/servo-reader
 ```
 
 > Co-developing against a local `servo-agent` checkout? Override the source in
@@ -57,8 +63,13 @@ uv run sr example.com
 
 ### The Servo engine
 
-`servo-reader` needs a built `servoshell` binary (Servo's shell). Point it at one
-of:
+Pages that come back thin over HTTP are rendered with Servo, which needs a built
+`servoshell` binary (Servo's shell). servo-reader looks for one in this order:
+
+1. `$SERVOSHELL`, the path to a binary
+2. `servoshell` on `PATH`
+3. a built `servo/` checkout beside servo-reader
+   (`servo/target/debug/servoshell` or `servo/target/release/servoshell`)
 
 ```bash
 export SERVOSHELL=/path/to/servo/target/debug/servoshell   # a local build, or
@@ -70,9 +81,10 @@ and is **much** faster than cold-starting a debug `servoshell` each time. See
 [Servo's build docs](https://book.servo.org/hacking/building-servo.html) to
 produce the binary.
 
-> Thanks to the tiered fetch, **most reads never touch the engine** — you only
-> need a `servoshell` for JS-gated sites (or pass `--http` to stay on the cheap
-> path always).
+Most reads never touch the engine. Without one, a page that comes back thin over
+HTTP still prints its HTTP text, with a note on stderr that Servo rendering was
+skipped, and `--servo` exits with an error. Pass `--http` to stay on the cheap
+path always.
 
 ## Options
 
@@ -121,7 +133,9 @@ stack) — small files, no daemon required for navigation.
 Optionally render a page's figures inline:
 
 ```bash
-pip install 'servo-reader[images]'          # adds Pillow (the only extra dep)
+uv sync --extra images    # in a clone; adds Pillow, the only extra dependency
+# or, as a uv tool:
+uv tool install 'servo-reader[images] @ git+https://github.com/parker-brown-family/servo-reader'
 sr --images auto en.wikipedia.org/wiki/Servo_(software)
 ```
 
@@ -129,6 +143,10 @@ sr --images auto en.wikipedia.org/wiki/Servo_(software)
 sure** — so it never garbles a terminal that can't decode graphics. Supported:
 **kitty / WezTerm / Ghostty** (kitty protocol) and **foot / xterm-with-sixel /
 Black Box** (sixel). Force one with `--images kitty|sixel`.
+
+Images are fetched only from `http`/`https` hosts with public addresses, so an
+image served from `localhost` or a private network shows the placeholder instead
+(see [SECURITY.md](SECURITY.md)).
 
 > Note: terminals on the **alacritty backend — including terminal-delight —
 > support neither protocol**, so images won't display there (you'll see a
@@ -152,10 +170,8 @@ sr-engine stop
 
 ## Status
 
-v0.4 — inline images (kitty/sixel, opt-in `[images]` extra) + back/forward
-history (`--back`/`--forward`/`--history`). Builds on v0.3 link-following +
-warm-engine daemon and v0.2 tiered fetch (rich pages `via http` in ~0.5–0.9s).
-
-The core stays tiny and dependency-free; the image lane is the only optional
-dependency (Pillow). That's the feature set rounded out — open an issue for what's
-next.
+The package version is 0.4.0, which is what `sr --version` prints. Nothing has
+been tagged or released, so install from a clone or from the git URL above. It
+covers the tiered fetch, link following with back/forward history, the
+warm-engine daemon, and inline images. Pillow, for the image lane, is the only
+optional dependency.

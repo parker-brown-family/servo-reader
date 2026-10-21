@@ -1,9 +1,9 @@
 """sr — read any website in your terminal as clean markdown, via the Servo engine.
 
-    sr example.com
+    sr servo.org/about/
     sr --links en.wikipedia.org/wiki/Servo_(software)   # show numbered links
     sr -l 3                                             # follow link 3 from the last page
-    sr --raw example.com | glow -                       # pipe the raw markdown elsewhere
+    sr --raw servo.org/about/ | glow -                  # pipe the raw markdown elsewhere
 
 Tip: `sr-engine start` launches a warm Servo so engine-tier reads skip cold start.
 """
@@ -16,8 +16,10 @@ import shutil
 import subprocess
 import sys
 
+from servo_agent.browser import ServoNotBuilt
+
 from . import __version__, images, nav
-from .fetch import fetch_markdown
+from .fetch import ENGINE_HINT, fetch_markdown
 from .render import BOLD, C_BULLET, C_LINK, DIM, OSC8, RESET, UNDER, render
 
 
@@ -62,7 +64,7 @@ def _make_image_renderer(mode_arg: str, width: int):
         return None
     if not images.available():
         if mode_arg in ("kitty", "sixel"):
-            _eprint("\033[2m(images need Pillow: pip install servo-reader[images])\033[0m")
+            _eprint("\033[2m(images need Pillow: install the [images] extra)\033[0m")
         return None
     return lambda url, alt: images.render_image(url, mode, width)
 
@@ -171,9 +173,17 @@ def main(argv: list[str] | None = None) -> int:
             timeout=args.timeout,
             engine=args.engine,
         )
+    except ServoNotBuilt:
+        _eprint(f"\033[31m✗ no servoshell found. To render with Servo, {ENGINE_HINT}.\033[0m")
+        return 1
     except Exception as e:  # noqa: BLE001 — top-level CLI guard
         _eprint(f"\033[31m✗ {type(e).__name__}: {e}\033[0m")
         return 1
+    if page.meta.get("servo_skipped"):
+        _eprint(
+            "\033[2m(Servo rendering skipped: no servoshell found. "
+            f"To enable it, {ENGINE_HINT}.)\033[0m"
+        )
 
     # Persist links (for `sr -l N`) and record the visit (for `sr --back`).
     links = nav.extract_links(page.markdown)

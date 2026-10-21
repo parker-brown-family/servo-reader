@@ -9,6 +9,8 @@ Tiered strategy (the whole point of a *light* reader):
      engine earns its 1.9GB: it executes JS and returns the rendered DOM.
 
 `engine="auto"` (default) does 1→2. `engine="http"` / `engine="servo"` force a tier.
+When `auto` wants tier 2 but no servoshell is installed, the tier-1 page comes back
+with ``meta["servo_skipped"] = True`` instead of an error; a forced `servo` still raises.
 """
 
 from __future__ import annotations
@@ -29,6 +31,11 @@ _UA = (
 # to the engine (an SPA shell typically distills to ~nothing).
 _MIN_GOOD = 300
 _TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
+# How to get an engine, for every message that has to say one is missing.
+ENGINE_HINT = (
+    "set $SERVOSHELL, put servoshell on PATH, "
+    "or build a servo/ checkout beside servo-reader"
+)
 
 
 @dataclass
@@ -124,17 +131,30 @@ def fetch_markdown(
         url = "https://" + url
 
     # Tier 1 — cheap HTTP (for auto + http).
+    http_page: Page | None = None
     if engine in ("auto", "http"):
         got = _http_fetch(url, timeout=min(timeout, 15.0))
         if got:
             final_url, title, html = got
             md = distill(html, url=final_url, max_chars=max_chars)
+            http_page = Page(final_url, title, md, _meta(md, "http"))
             if engine == "http" or _good_enough(md):
-                return Page(final_url, title, md, _meta(md, "http"))
+                return http_page
         elif engine == "http":
             return Page(url, "", "(no content: HTTP fetch failed)", _meta("", "http-failed"))
 
     # Tier 2 — Servo engine (auto-fallback or forced).
-    final_url, title, html = _servo_fetch(url, timeout=timeout, settle=settle, headless=headless)
+    from servo_agent.browser import ServoNotBuilt
+
+    try:
+        final_url, title, html = _servo_fetch(
+            url, timeout=timeout, settle=settle, headless=headless
+        )
+    except ServoNotBuilt:
+        if http_page is None:
+            raise  # forced --servo, or HTTP failed as well: nothing to show
+        # The thin HTTP page is still worth reading; the caller reports the skip.
+        http_page.meta["servo_skipped"] = True
+        return http_page
     md = distill(html, url=final_url, max_chars=max_chars)
     return Page(final_url, title, md, _meta(md, "servo"))
