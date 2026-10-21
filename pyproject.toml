@@ -12,7 +12,7 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "Parker Brown" }]
 keywords = ["servo", "terminal", "reader", "markdown", "browser", "tui", "lynx"]
 dependencies = [
-    "servo-agent",
+    "servo-agent>=0.2.0",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +30,11 @@ sr-engine = "servo_reader.daemon:main"
 # co-development against a sibling checkout, override with:
 #   servo-agent = { path = "../servo-agent", editable = true }
 servo-agent = { git = "https://github.com/parker-brown-family/servo-agent.git", branch = "main" }
+
+[tool.hatch.build.targets.sdist]
+# Hatchling reads the project's .gitignore but not the global one, so a local
+# build would otherwise pick up untracked tool state such as .claude/.
+exclude = ["/.claude", "/.github", "/dist"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/servo_reader"]
