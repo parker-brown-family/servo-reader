@@ -1,9 +1,10 @@
 """Optional inline-image lane: render page figures via the kitty graphics
 protocol or sixel.
 
-Kept out of the core path — needs Pillow (`pip install servo-reader[images]`) to
-decode arbitrary web image formats. Terminal support varies: kitty / WezTerm /
-Ghostty speak the kitty protocol; foot / xterm-with-sixel / Black Box speak sixel.
+Kept out of the core path — needs Pillow (the `[images]` extra, e.g.
+`uv sync --extra images`) to decode arbitrary web image formats. Terminal support
+varies: kitty / WezTerm / Ghostty speak the kitty protocol; foot /
+xterm-with-sixel / Black Box speak sixel.
 Terminals on the alacritty backend (incl. terminal-delight) support neither, so
 :func:`detect` stays conservative and returns ``None`` for them — we never emit
 graphics escapes to a terminal that would garble on them.

@@ -1,9 +1,9 @@
 """sr — read any website in your terminal as clean markdown, via the Servo engine.
 
-    sr example.com
+    sr servo.org/about/
     sr --links en.wikipedia.org/wiki/Servo_(software)   # show numbered links
     sr -l 3                                             # follow link 3 from the last page
-    sr --raw example.com | glow -                       # pipe the raw markdown elsewhere
+    sr --raw servo.org/about/ | glow -                  # pipe the raw markdown elsewhere
 
 Tip: `sr-engine start` launches a warm Servo so engine-tier reads skip cold start.
 """
@@ -64,7 +64,7 @@ def _make_image_renderer(mode_arg: str, width: int):
         return None
     if not images.available():
         if mode_arg in ("kitty", "sixel"):
-            _eprint("\033[2m(images need Pillow: pip install servo-reader[images])\033[0m")
+            _eprint("\033[2m(images need Pillow: install the [images] extra)\033[0m")
         return None
     return lambda url, alt: images.render_image(url, mode, width)
 
