@@ -144,6 +144,10 @@ sure** — so it never garbles a terminal that can't decode graphics. Supported:
 **kitty / WezTerm / Ghostty** (kitty protocol) and **foot / xterm-with-sixel /
 Black Box** (sixel). Force one with `--images kitty|sixel`.
 
+Images are fetched only from `http`/`https` hosts with public addresses, so an
+image served from `localhost` or a private network shows the placeholder instead
+(see [SECURITY.md](SECURITY.md)).
+
 > Note: terminals on the **alacritty backend — including terminal-delight —
 > support neither protocol**, so images won't display there (you'll see a
 > `🖼 alt-text` placeholder instead). Use a kitty/sixel terminal for the image lane.
