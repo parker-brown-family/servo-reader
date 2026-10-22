@@ -187,8 +187,8 @@ headless, and keeps the engine registered if it is somehow still running.
 
 ## Status
 
-The package version is 0.4.0, which is what `sr --version` prints. Nothing has
-been tagged or released, so install from a clone or from the git URL above. It
-covers the tiered fetch, link following with back/forward history, the
+The package version is 0.5.0, which is what `sr --version` prints, and it
+installs from PyPI. It needs servo-agent 0.3.0 or newer, which runs on Servo's
+official builds. It covers the tiered fetch, link following with back/forward history, the
 warm-engine daemon, and inline images. Pillow, for the image lane, is the only
 optional dependency.

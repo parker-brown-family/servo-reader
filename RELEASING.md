@@ -3,7 +3,7 @@
 Releases are automated by `.github/workflows/release.yml`, triggered by a version
 tag. PyPI publishing uses [Trusted Publishing][tp] (OIDC) — no API tokens.
 
-servo-reader depends on `servo-agent>=0.2.0` from PyPI. A servo-reader release
+servo-reader depends on `servo-agent>=0.3.0` from PyPI. A servo-reader release
 that needs a newer servo-agent has to wait until that servo-agent is published.
 
 ## PyPI setup (in place)
