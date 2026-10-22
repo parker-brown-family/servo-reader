@@ -33,8 +33,8 @@ _MIN_GOOD = 300
 _TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
 # How to get an engine, for every message that has to say one is missing.
 ENGINE_HINT = (
-    "set $SERVOSHELL, put servoshell on PATH, "
-    "or build a servo/ checkout beside servo-reader"
+    "run `servo-agent install-servo` (Linux), set $SERVOSHELL, "
+    "or put servoshell on PATH"
 )
 
 
