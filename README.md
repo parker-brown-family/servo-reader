@@ -42,20 +42,20 @@ renderer (no third-party deps — that is the whole point of a *light* reader).
 
 ## Install / run
 
-This is a [uv](https://docs.astral.sh/uv/) project. It is not published on PyPI.
-`servo-agent` is pulled straight from GitHub, so a fresh clone builds standalone:
+```bash
+uv tool install servo-reader
+sr --links https://servo.org/about/
+```
+
+That puts `sr` on your `PATH`, with `servo-agent` from PyPI. To work from a
+clone instead: it is a [uv](https://docs.astral.sh/uv/) project, and a clone
+takes `servo-agent` straight from GitHub's `main`, so it builds standalone:
 
 ```bash
 git clone https://github.com/parker-brown-family/servo-reader
 cd servo-reader
 uv sync
 uv run sr --links https://servo.org/about/
-```
-
-To put `sr` on your `PATH` instead, install it as a uv tool:
-
-```bash
-uv tool install git+https://github.com/parker-brown-family/servo-reader
 ```
 
 > Co-developing against a local `servo-agent` checkout? Override the source in
@@ -68,7 +68,8 @@ Pages that come back thin over HTTP are rendered with Servo, which needs a built
 
 1. `$SERVOSHELL`, the path to a binary
 2. `servoshell` on `PATH`
-3. a built `servo/` checkout beside servo-reader
+3. a built `servo/` checkout beside servo-reader's clone, or beside any directory
+   above an installed copy, so a uv tool install finds `~/servo`
    (`servo/target/debug/servoshell` or `servo/target/release/servoshell`)
 
 ```bash
@@ -135,7 +136,7 @@ Optionally render a page's figures inline:
 ```bash
 uv sync --extra images    # in a clone; adds Pillow, the only extra dependency
 # or, as a uv tool:
-uv tool install 'servo-reader[images] @ git+https://github.com/parker-brown-family/servo-reader'
+uv tool install 'servo-reader[images]'
 sr --images auto en.wikipedia.org/wiki/Servo_(software)
 ```
 
