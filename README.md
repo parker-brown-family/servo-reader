@@ -63,24 +63,33 @@ uv run sr --links https://servo.org/about/
 
 ### The Servo engine
 
-Pages that come back thin over HTTP are rendered with Servo, which needs a built
-`servoshell` binary (Servo's shell). servo-reader looks for one in this order:
+Pages that come back thin over HTTP are rendered with Servo, which needs
+`servoshell`, Servo's browser binary. On Linux, servo-agent (installed with
+servo-reader) installs Servo's official build and checks its SHA-256:
+
+```bash
+servo-agent install-servo     # the latest Servo release
+```
+
+On macOS and Windows, download a build from
+[Servo's releases](https://github.com/servo/servo/releases). servo-reader looks
+for an engine in this order:
 
 1. `$SERVOSHELL`, the path to a binary
 2. `servoshell` on `PATH`
-3. a built `servo/` checkout beside servo-reader's clone, or beside any directory
-   above an installed copy, so a uv tool install finds `~/servo`
-   (`servo/target/debug/servoshell` or `servo/target/release/servoshell`)
+3. the newest engine `servo-agent install-servo` installed
+4. a `servo/` directory beside servo-reader's clone, or beside any directory
+   above an installed copy, holding an unpacked release (`servo/servoshell`) or a
+   source build (`servo/target/release/servoshell` or `servo/target/debug/servoshell`)
 
 ```bash
-export SERVOSHELL=/path/to/servo/target/debug/servoshell   # a local build, or
-export SERVO_WEBDRIVER=host:port                            # an already-running engine
+export SERVOSHELL=/path/to/servoshell   # a given binary, or
+export SERVO_WEBDRIVER=host:port         # an already-running engine
 ```
 
-Using `$SERVO_WEBDRIVER` against a warm engine skips the per-call browser launch
-and is **much** faster than cold-starting a debug `servoshell` each time. See
-[Servo's build docs](https://book.servo.org/hacking/building-servo.html) to
-produce the binary.
+Using `$SERVO_WEBDRIVER` against a warm engine skips the per-call browser launch,
+which is faster than starting `servoshell` each time. servo-reader is tested
+against Servo 0.7.0 and Servo's nightly build of 2026-10-22.
 
 Most reads never touch the engine. Without one, a page that comes back thin over
 HTTP still prints its HTTP text, with a note on stderr that Servo rendering was
@@ -160,10 +169,17 @@ every read attaches to it automatically:
 
 ```bash
 sr-engine start     # launch a headless servoshell, register its WebDriver port
-sr-engine status    # running?  where?
+sr-engine status    # running?  where?  how much memory?
 sr ...              # engine reads now attach to the warm one (no env export needed)
+sr-engine restart   # a fresh engine, when the warm one has grown
 sr-engine stop
 ```
+
+Servo's memory climbs with every page it opens in one window: Servo 0.7.0 went
+from 334 MB to 5.3 GB over 100 pages. A warm engine serves every read, so check
+its memory with `status` and `restart` it when it has grown. `stop` asks Servo to
+shut down through its own WebDriver route, because Servo 0.7 ignores SIGTERM when
+headless, and keeps the engine registered if it is somehow still running.
 
 `sr` discovers the daemon via the same state dir; you can still override with
 `$SERVO_WEBDRIVER` to point at any engine. (Measured: an engine read drops from
